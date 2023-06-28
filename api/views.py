@@ -1,9 +1,21 @@
+import os
+import openai
+import time
+import requests
+
+import re
+import ast
+import json
+from serpapi import GoogleSearch
+from dotenv import load_dotenv
+from bs4 import BeautifulSoup
+from collections import deque
+from typing import Dict, List
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 # from .BabyCatAGI import prompt
-# Create your views here.
 
 ###### This is a modified version of OG BabyAGI, called BabyCatAGI (future modifications will follow the pattern "Baby<animal>AGI"). This version requires GPT-4, it's very slow, and often errors out.######
 ######IMPORTANT NOTE: I'm sharing this as a framework to build on top of (with lots of errors for improvement), to facilitate discussion around how to improve these. This is NOT for people who are looking for a complete solution that's ready to use. ######
@@ -11,28 +23,17 @@ from rest_framework import status
 ###### This is a modified version of OG BabyAGI, called BabyCatAGI (future modifications will follow the pattern "Baby<animal>AGI"). This version requires GPT-4, it's very slow, and often errors out.######
 ######IMPORTANT NOTE: I'm sharing this as a framework to build on top of (with lots of errors for improvement), to facilitate discussion around how to improve these. This is NOT for people who are looking for a complete solution that's ready to use. ######
 
-import openai
-import time
-import requests
-from bs4 import BeautifulSoup
-from collections import deque
-from typing import Dict, List
-import re
-import ast
-import json
-from serpapi import GoogleSearch
 
 ### SET THESE 4 VARIABLES ##############################
 # Initialize task list
 task_list = []
-
+load_dotenv()
 
 
 # Initialize session_summary
 session_summary = ""
 # Add your API keys here
-OPENAI_API_KEY = ""
-SERPAPI_API_KEY = "" #If you include SERPAPI KEY, this will enable web-search. If you don't, it will autoatically remove web-search capability.
+ #If you include SERPAPI KEY, this will enable web-search. If you don't, it will autoatically remove web-search capability.
 def prompt(obj_string):
     # Set variables
     OBJECTIVE = obj_string
@@ -41,6 +42,12 @@ def prompt(obj_string):
     ### UP TO HERE ##############################
 
     # Configure OpenAI and SerpAPI client
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY')
+    print("==================")
+    print(OPENAI_API_KEY)
+    print(SERPAPI_API_KEY)
+    print("==================")
     openai.api_key = OPENAI_API_KEY
     if SERPAPI_API_KEY:
         serpapi_client = GoogleSearch({"api_key": SERPAPI_API_KEY})
