@@ -44,10 +44,6 @@ def prompt(obj_string):
     # Configure OpenAI and SerpAPI client
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY')
-    print("==================")
-    print(OPENAI_API_KEY)
-    print(SERPAPI_API_KEY)
-    print("==================")
     openai.api_key = OPENAI_API_KEY
     if SERPAPI_API_KEY:
         serpapi_client = GoogleSearch({"api_key": SERPAPI_API_KEY})
