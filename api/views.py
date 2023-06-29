@@ -344,7 +344,9 @@ def prompt(obj_string):
     print(session_summary)
     return task_list , session_summary
 
-
+class Index(APIView):
+    def get(self,request):
+        return Response({"status": "hello from babyagi"})
 class PromptTextViews(APIView):
     
     def post(self, request):
