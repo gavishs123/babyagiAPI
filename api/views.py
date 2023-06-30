@@ -2,7 +2,7 @@ import os
 import openai
 import time
 import requests
-
+import random
 import re
 import ast
 import json
@@ -15,6 +15,8 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 # from .BabyCatAGI import prompt
 
 ###### This is a modified version of OG BabyAGI, called BabyCatAGI (future modifications will follow the pattern "Baby<animal>AGI"). This version requires GPT-4, it's very slow, and often errors out.######
@@ -34,7 +36,7 @@ load_dotenv()
 session_summary = ""
 # Add your API keys here
  #If you include SERPAPI KEY, this will enable web-search. If you don't, it will autoatically remove web-search capability.
-def prompt(obj_string):
+def prompt(obj_string,group_name):
     # Set variables
     OBJECTIVE = obj_string
     YOUR_FIRST_TASK = "Develop a task list." #you can provide additional instructions here regarding the task list.
@@ -75,7 +77,13 @@ def prompt(obj_string):
             if t['dependent_task_ids']:
                 dependent_task = f"\033[31m<dependencies: {', '.join([f'#{dep_id}' for dep_id in t['dependent_task_ids']])}>\033[0m"
             status_color = "\033[32m" if t['status'] == "complete" else "\033[31m"
+            layer = get_channel_layer()
             print(f"\033[1m{t['id']}\033[0m: {t['task']} {status_color}[{t['status']}]\033[0m \033[93m[{t['tool']}] {dependent_task}\033[0m")
+
+            async_to_sync(layer.group_send)('query_{}'.format(group_name), {
+                    'type': 'events_alarm',
+                    'data': f"\033[1m{t['id']}\033[0m: {t['task']} {status_color}[{t['status']}]\033[0m \033[93m[{t['tool']}] {dependent_task}\033[0m"
+                })  
 
     ### Tool functions ##############################
     def text_completion_tool(prompt: str):
@@ -253,6 +261,12 @@ def prompt(obj_string):
 
         # Add task output to session_summary
         global session_summary
+        layer = get_channel_layer()
+
+        async_to_sync(layer.group_send)('query_{}'.format(group_name), {
+                'type': 'events_alarm',
+                'data': f"\n\nTask {task['id']} - {task['task']}:\n{task_output}",
+            })  
         session_summary += f"\n\nTask {task['id']} - {task['task']}:\n{task_output}"
 
 
@@ -314,7 +328,12 @@ def prompt(obj_string):
     #Print OBJECTIVE
     print("\033[96m\033[1m"+"\n*****OBJECTIVE*****\n"+"\033[0m\033[0m")
     print(OBJECTIVE)
+    layer = get_channel_layer()
 
+    async_to_sync(layer.group_send)('query_{}'.format(group_name), {
+            'type': 'events_alarm',
+            'data':OBJECTIVE
+        })  
     # Initialize task_id_counter
     task_id_counter = 1
 
@@ -337,6 +356,13 @@ def prompt(obj_string):
                 print("Last Scroipt : : ",task_list)
                 print("I lenght  :: ",i)
                 print("Lenght Of Task List :: ",len(task_list))
+                layer = get_channel_layer()
+
+                async_to_sync(layer.group_send)('query_{}'.format(group_name), {
+                        'type': 'events_alarm',
+                        'data':[f"Executed The Scripts 1: {task}",
+                                      f"Executed The Scripts 2: {task_list}",
+                                      f"Executed The Scripts 3: {OBJECTIVE}"]})  
                 # break
 
     # Print session summary
@@ -346,6 +372,14 @@ def prompt(obj_string):
 
 class Index(APIView):
     def get(self,request):
+        gname = 'post_request'
+        user_id = 1
+        layer = get_channel_layer()
+
+        async_to_sync(layer.group_send)('query_{}'.format(gname), {
+                'type': 'events_alarm',
+                'data':{"status": "success", "data": "hello from baby agi socket"},
+            }) 
         return Response({"status": "hello from babyagi"})
 class PromptTextViews(APIView):
     
@@ -354,18 +388,25 @@ class PromptTextViews(APIView):
         print("Enterted Texts : ",request.data)
         # global OBJECTIVE
         data = request.data
+        
+        group_name = re.sub('[^a-z]', '', data['prompt'])
         OBJECTIVE = data['prompt']
         print("Entered Prompt : ",OBJECTIVE)
-        task_list , session_summary = prompt(OBJECTIVE)
+        task_list , session_summary = prompt(OBJECTIVE,group_name)
         for i in task_list:
-            print("DAta : ",i['task'])
+            print("Data : ",i['task'])
             
             display_data[i['id']] = {
                 "task":i['task'],
                 "output":i['output']
             }
-            
-                        
+        
+        layer = get_channel_layer()
+
+        async_to_sync(layer.group_send)('query_{}'.format(group_name), {
+                'type': 'events_alarm',
+                'data':{"status": "success", "data": display_data},
+            })                  
         return Response({"status": "success", "data": display_data}, status=status.HTTP_200_OK)
         
     
